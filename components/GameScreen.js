@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView } from 'expo-camera';
 import { GESTURES, getAIMove, getGameResult, mapMediaPipeGesture, getGestureEmoji } from '../utils/gameLogic';
 
 const { width } = Dimensions.get('window');
@@ -16,6 +16,7 @@ export default function GameScreen({ onGameResult }) {
   const simulateGestureDetection = () => {
     if (!isDetecting) return;
 
+    // In a real implementation, this would process camera frames with MediaPipe
     // For this demo, we'll simulate gesture detection based on random input
     const gestures = [GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS, GESTURES.UNKNOWN];
     const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
@@ -79,10 +80,10 @@ export default function GameScreen({ onGameResult }) {
   return (
     <View style={styles.container}>
       <View style={styles.cameraContainer}>
-        <Camera
+        <CameraView
           ref={cameraRef}
           style={styles.camera}
-          type={Camera.Constants.Type.front}
+          facing="front"
         >
           <View style={styles.overlay}>
             {countdown !== null && countdown > 0 && (
@@ -104,7 +105,7 @@ export default function GameScreen({ onGameResult }) {
               </View>
             )}
           </View>
-        </Camera>
+        </CameraView>
       </View>
 
       <View style={styles.controls}>
