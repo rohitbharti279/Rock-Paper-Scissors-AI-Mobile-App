@@ -12,21 +12,27 @@ export default function GameScreen({ onGameResult }) {
   const [currentGesture, setCurrentGesture] = useState(GESTURES.UNKNOWN);
   const [lastDetectedGesture, setLastDetectedGesture] = useState(GESTURES.UNKNOWN);
 
-  // Simulated MediaPipe integration
-  const simulateGestureDetection = () => {
-    if (!isDetecting) return;
+  // // Simulated MediaPipe integration
+  // const simulateGestureDetection = () => {
+  //   if (!isDetecting) return;
 
-    // In a real implementation, this would process camera frames with MediaPipe
-    // For this demo, we'll simulate gesture detection based on random input
-    const gestures = [GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS, GESTURES.UNKNOWN];
-    const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
+  //   // In a real implementation, this would process camera frames with MediaPipe
+  //   // For this demo, we'll simulate gesture detection based on random input
+  //   const gestures = [GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS, GESTURES.UNKNOWN];
+  //   const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
     
-    setCurrentGesture(randomGesture);
+  //   setCurrentGesture(randomGesture);
     
-    // Store the last valid gesture for game play
-    if (randomGesture !== GESTURES.UNKNOWN) {
-      setLastDetectedGesture(randomGesture);
-    }
+  //   // Store the last valid gesture for game play
+  //   if (randomGesture !== GESTURES.UNKNOWN) {
+  //     setLastDetectedGesture(randomGesture);
+  //   }
+  // };
+
+  // User gesture selection handler
+  const handleGestureSelect = (gesture) => {
+    setCurrentGesture(gesture);
+    setLastDetectedGesture(gesture);
   };
 
   const startGame = () => {
@@ -35,19 +41,19 @@ export default function GameScreen({ onGameResult }) {
     setCurrentGesture(GESTURES.UNKNOWN);
   };
 
-  useEffect(() => {
-    let detectionInterval;
+  // useEffect(() => {
+  //   let detectionInterval;
     
-    if (isDetecting) {
-      detectionInterval = setInterval(simulateGestureDetection, 500);
-    }
+  //   if (isDetecting) {
+  //     detectionInterval = setInterval(simulateGestureDetection, 500);
+  //   }
 
-    return () => {
-      if (detectionInterval) {
-        clearInterval(detectionInterval);
-      }
-    };
-  }, [isDetecting]);
+  //   return () => {
+  //     if (detectionInterval) {
+  //       clearInterval(detectionInterval);
+  //     }
+  //   };
+  // }, [isDetecting]);
 
   useEffect(() => {
     let countdownInterval;
@@ -98,10 +104,22 @@ export default function GameScreen({ onGameResult }) {
                   Current: {getGestureEmoji(currentGesture)}
                 </Text>
                 <Text style={styles.instruction}>
-                  Show your hand! {lastDetectedGesture !== GESTURES.UNKNOWN && 
+                  {/* Show your hand! {lastDetectedGesture !== GESTURES.UNKNOWN && 
                     `Detected: ${lastDetectedGesture}`
-                  }
+                  } */}
+                  Select your gesture below:
                 </Text>
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  {[GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS].map(gesture => (
+                    <TouchableOpacity
+                      key={gesture}
+                      style={{ marginHorizontal: 10, padding: 10, backgroundColor: '#2196F3', borderRadius: 10 }}
+                      onPress={() => handleGestureSelect(gesture)}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 24 }}>{getGestureEmoji(gesture)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             )}
           </View>
