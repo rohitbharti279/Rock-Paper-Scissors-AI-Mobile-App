@@ -25,7 +25,7 @@ def map_gesture(landmarks):
 
         # Looser, more tolerant gesture detection:
         # Rock: all fingers (except thumb) close to wrist
-        if all(d < 0.5 for d in distances[1:]):
+        if all(d < 0.48 for d in distances[1:]):
             print(f"[DEBUG] Detected ROCK gesture. distances: {distances[1:]}")
             return GESTURES['ROCK']
 
