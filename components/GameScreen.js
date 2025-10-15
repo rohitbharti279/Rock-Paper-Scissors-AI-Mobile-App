@@ -1,138 +1,249 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { CameraView } from 'expo-camera';
-import { GESTURES, getAIMove, getGameResult, mapMediaPipeGesture, getGestureEmoji } from '../utils/gameLogic';
+import React, { useRef, useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { GESTURES, getAIMove, getGameResult, getGestureEmoji } from '../utils/gameLogic';
 
 const { width } = Dimensions.get('window');
 
 export default function GameScreen({ onGameResult }) {
-  const cameraRef = useRef(null);
+  const [cameraRef, setCameraRef] = useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [currentGesture, setCurrentGesture] = useState(GESTURES.UNKNOWN);
   const [lastDetectedGesture, setLastDetectedGesture] = useState(GESTURES.UNKNOWN);
+  const [isBackendReady, setIsBackendReady] = useState(false);
+  const [backendError, setBackendError] = useState(null);
 
-  // // Simulated MediaPipe integration
-  // const simulateGestureDetection = () => {
-  //   if (!isDetecting) return;
+  // Check backend status on component mount
+  useEffect(() => {
+    checkBackendStatus();
+  }, []);
 
-  //   // In a real implementation, this would process camera frames with MediaPipe
-  //   // For this demo, we'll simulate gesture detection based on random input
-  //   const gestures = [GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS, GESTURES.UNKNOWN];
-  //   const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
-    
-  //   setCurrentGesture(randomGesture);
-    
-  //   // Store the last valid gesture for game play
-  //   if (randomGesture !== GESTURES.UNKNOWN) {
-  //     setLastDetectedGesture(randomGesture);
-  //   }
-  // };
-
-  // User gesture selection handler
-  const handleGestureSelect = (gesture) => {
-    setCurrentGesture(gesture);
-    setLastDetectedGesture(gesture);
+  const checkBackendStatus = async () => {
+    try {
+      console.log('Checking backend health...');
+      const response = await fetch('http://192.168.1.6:5050/health', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      console.log('Health check response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Backend status:', data);
+        setIsBackendReady(true);
+        setBackendError(null);
+      } else {
+        throw new Error(`Backend health check failed: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('❌ Backend health check error:', err);
+      setIsBackendReady(false);
+      setBackendError(err.message || 'Backend server is not reachable. Please make sure it is running.');
+    }
   };
 
+  // Start detection when game starts
+  useEffect(() => {
+    let interval;
+    if (isDetecting && isBackendReady) {
+      interval = setInterval(runDetection, 1500);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isDetecting, isBackendReady]);
+
+  // Send camera photo to backend for gesture detection
+  const runDetection = async () => {
+    if (!cameraRef) return console.warn('No camera reference available');
+    
+    try {
+      // const photo = await cameraRef.current.takePictureAsync({ 
+      const photo = await cameraRef.takePictureAsync({
+        base64: false,
+        quality: 0.5,
+        // skipProcessing: true
+      });
+
+      const formData = new FormData();
+      formData.append('image', {
+        uri: photo.uri,
+        type: 'image/jpeg',
+        name: 'photo.jpg',
+      });
+
+      const backendUrl = 'http://192.168.1.6:5050/detect';
+      
+      console.log('📸 Sending image to backend...');
+      
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      console.log('📨 Raw response:', responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        console.error('❌ JSON parse error:', jsonErr);
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+      }
+
+      console.log('✅ Parsed data:', data);
+
+      if (data.gesture) {
+        setCurrentGesture(data.gesture);
+        if (data.gesture !== GESTURES.UNKNOWN) {
+          setLastDetectedGesture(data.gesture);
+        }
+      } else {
+        setCurrentGesture(GESTURES.UNKNOWN);
+      }
+      
+      setBackendError(null);
+      
+    } catch (err) {
+      console.error('❌ Detection error:', err);
+      setBackendError(err.message || String(err));
+      setCurrentGesture(GESTURES.UNKNOWN);
+    }
+  };
+
+  // Start game and countdown
   const startGame = () => {
     setIsDetecting(true);
     setCountdown(3);
     setCurrentGesture(GESTURES.UNKNOWN);
+    setLastDetectedGesture(GESTURES.UNKNOWN);
+    setBackendError(null);
   };
 
-  // useEffect(() => {
-  //   let detectionInterval;
-    
-  //   if (isDetecting) {
-  //     detectionInterval = setInterval(simulateGestureDetection, 500);
-  //   }
-
-  //   return () => {
-  //     if (detectionInterval) {
-  //       clearInterval(detectionInterval);
-  //     }
-  //   };
-  // }, [isDetecting]);
-
+  // Countdown logic
   useEffect(() => {
-    let countdownInterval;
+    if (countdown === null || countdown === 0) return;
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
-    if (countdown > 0) {
-      countdownInterval = setInterval(() => {
-        setCountdown(prev => prev - 1);
-      }, 1000);
-    } else if (countdown === 0) {
-      // Game round complete
+  // When countdown ends, play round
+  useEffect(() => {
+    if (countdown === 0) {
       setIsDetecting(false);
-      
-      const aiGesture = getAIMove();
-      const result = getGameResult(lastDetectedGesture, aiGesture);
-      
-      onGameResult({
-        userGesture: lastDetectedGesture,
-        aiGesture,
-        result
-      });
-    }
 
-    return () => {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
+      // const userGesture = lastDetectedGesture;
+      // const aiGesture = getAIMove();
+      // const result = getGameResult(userGesture, aiGesture);
+      // console.log('🎯 Game round - userGesture:', userGesture, 'aiGesture:', aiGesture, 'result:', result);
+      // onGameResult({ userGesture, aiGesture, result });
+      
+      if (lastDetectedGesture && lastDetectedGesture !== GESTURES.UNKNOWN) {
+        const userGesture = lastDetectedGesture;
+        const aiGesture = getAIMove();
+        const result = getGameResult(userGesture, aiGesture);
+        console.log('🎯 Game round - userGesture:', userGesture, 'aiGesture:', aiGesture, 'result:', result);
+        onGameResult({ userGesture, aiGesture, result });
+      } else {
+        // Detection failed, let user retry or show error
+        console.warn('Detection failed or gesture unknown. Please try again.');
       }
-    };
+
+    }
   }, [countdown, lastDetectedGesture, onGameResult]);
+
+  // Retry backend connection
+  const retryConnection = () => {
+    setIsBackendReady(false);
+    setBackendError(null);
+    checkBackendStatus();
+  };
+
+  if (backendError) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#F44336" />
+        <Text style={{ color: '#F44336', margin: 10, textAlign: 'center' }}>
+          Error contacting backend:
+        </Text>
+        <Text style={{ color: '#F44336', margin: 10, textAlign: 'center' }}>
+          {backendError}
+        </Text>
+        <Text style={{ color: '#333', margin: 10, textAlign: 'center' }}>
+          Make sure your backend server is running on port 5050
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={retryConnection}>
+          <Text style={styles.retryButtonText}>Retry Connection</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!isBackendReady) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={{ margin: 20, textAlign: 'center' }}>
+          Connecting to backend for gesture detection...
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={retryConnection}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.cameraContainer}>
         <CameraView
-          ref={cameraRef}
           style={styles.camera}
-          facing="front"
-        >
-          <View style={styles.overlay}>
-            {countdown !== null && countdown > 0 && (
-              <View style={styles.countdownContainer}>
-                <Text style={styles.countdownText}>{countdown}</Text>
-              </View>
-            )}
-            
-            {isDetecting && (
-              <View style={styles.detectionInfo}>
-                <Text style={styles.gestureText}>
-                  Current: {getGestureEmoji(currentGesture)}
-                </Text>
-                <Text style={styles.instruction}>
-                  {/* Show your hand! {lastDetectedGesture !== GESTURES.UNKNOWN && 
-                    `Detected: ${lastDetectedGesture}`
-                  } */}
-                  Select your gesture below:
-                </Text>
-                <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                  {[GESTURES.ROCK, GESTURES.PAPER, GESTURES.SCISSORS].map(gesture => (
-                    <TouchableOpacity
-                      key={gesture}
-                      style={{ marginHorizontal: 10, padding: 10, backgroundColor: '#2196F3', borderRadius: 10 }}
-                      onPress={() => handleGestureSelect(gesture)}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 24 }}>{getGestureEmoji(gesture)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        </CameraView>
+          facing={'front'}
+          // ref={cameraRef}
+          ref={(ref) => setCameraRef(ref)}
+        />
+        <View style={styles.overlay}>
+          {countdown !== null && countdown > 0 ? (
+            <View style={styles.countdownContainer}>
+              <Text style={styles.countdownText}>{countdown}</Text>
+            </View>
+          ) : (
+            <View style={styles.detectionInfo}>
+              <Text style={styles.gestureText}>
+                Detected Gesture: {getGestureEmoji(currentGesture)} {currentGesture.toUpperCase()}
+              </Text>
+              <Text style={styles.instruction}>
+                Show your hand (rock, paper, or scissors) in front of the camera!
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
-
+      
       <View style={styles.controls}>
         {!isDetecting ? (
           <TouchableOpacity style={styles.startButton} onPress={startGame}>
             <Text style={styles.startButtonText}>Start Game</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={styles.playingText}>Game in progress...</Text>
+          <Text style={styles.playingText}>Game in progress... Detecting gesture</Text>
         )}
 
         <View style={styles.gestureGuide}>
@@ -160,16 +271,19 @@ export default function GameScreen({ onGameResult }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cameraContainer: {
     flex: 1,
+    width: '100%',
     backgroundColor: '#000',
   },
   camera: {
     flex: 1,
   },
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
@@ -191,11 +305,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 50,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   gestureText: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#fff',
     marginBottom: 10,
+    textAlign: 'center',
   },
   instruction: {
     fontSize: 16,
@@ -205,6 +321,7 @@ const styles = StyleSheet.create({
   controls: {
     padding: 20,
     backgroundColor: '#fff',
+    width: '100%',
   },
   startButton: {
     backgroundColor: '#2196F3',
@@ -217,6 +334,19 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  retryButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   playingText: {
@@ -233,6 +363,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     color: '#333',
+    textAlign: 'center',
   },
   gestureList: {
     flexDirection: 'row',
