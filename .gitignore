@@ -1,3 +1,10 @@
 node_modules/
 .expo/
+backend/uploads/
+android/app/build/
 ios/build/
+ios/Pods/
+*.log
+*.pyc
+__pycache__/
+.DS_Store
