@@ -46,6 +46,16 @@ This is a full-stack mobile app built with React Native (Expo) and a Python/Node
 - Thresholds are tuned for reliable detection of rock, paper, and scissors.
 - Backend robustly handles errors and cleans up resources.
 
+
+## Install & Test
+
+You can test the app via Expo Go using this link:
+**https://expo.dev/accounts/rohit279/projects/rps-ai-app/updates/0e66747a-52d0-4746-bac3-4e42ffe445a7**
+
+Scan the QR code in Expo Go or open the link on your device to run the app instantly.
+
+---
+
 ## Setup Instructions
 
 ### Prerequisites

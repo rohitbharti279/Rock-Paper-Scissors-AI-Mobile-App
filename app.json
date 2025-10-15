@@ -22,7 +22,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +41,17 @@
           "cameraPermission": "Allow RPS AI to access your camera for gesture recognition."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "caa7b86e-5b62-4fc1-bc72-c287e372613d"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/caa7b86e-5b62-4fc1-bc72-c287e372613d"
+    }
   }
 }
