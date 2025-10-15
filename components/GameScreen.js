@@ -13,6 +13,7 @@ export default function GameScreen({ onGameResult }) {
   const [lastDetectedGesture, setLastDetectedGesture] = useState(GESTURES.UNKNOWN);
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [backendError, setBackendError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Check backend status on component mount
   useEffect(() => {
@@ -60,26 +61,20 @@ export default function GameScreen({ onGameResult }) {
   // Send camera photo to backend for gesture detection
   const runDetection = async () => {
     if (!cameraRef) return console.warn('No camera reference available');
-    
+    setIsLoading(true);
     try {
-      // const photo = await cameraRef.current.takePictureAsync({ 
       const photo = await cameraRef.takePictureAsync({
         base64: false,
         quality: 0.5,
-        // skipProcessing: true
       });
-
       const formData = new FormData();
       formData.append('image', {
         uri: photo.uri,
         type: 'image/jpeg',
         name: 'photo.jpg',
       });
-
       const backendUrl = 'http://192.168.1.6:5050/detect';
-      
       console.log('📸 Sending image to backend...');
-      
       const response = await fetch(backendUrl, {
         method: 'POST',
         body: formData,
@@ -88,16 +83,12 @@ export default function GameScreen({ onGameResult }) {
           'Content-Type': 'multipart/form-data',
         },
       });
-
       console.log('📡 Response status:', response.status);
-      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const responseText = await response.text();
       console.log('📨 Raw response:', responseText);
-      
       let data;
       try {
         data = JSON.parse(responseText);
@@ -105,9 +96,7 @@ export default function GameScreen({ onGameResult }) {
         console.error('❌ JSON parse error:', jsonErr);
         throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
       }
-
       console.log('✅ Parsed data:', data);
-
       if (data.gesture) {
         setCurrentGesture(data.gesture);
         if (data.gesture !== GESTURES.UNKNOWN) {
@@ -116,13 +105,13 @@ export default function GameScreen({ onGameResult }) {
       } else {
         setCurrentGesture(GESTURES.UNKNOWN);
       }
-      
       setBackendError(null);
-      
     } catch (err) {
       console.error('❌ Detection error:', err);
       setBackendError(err.message || String(err));
       setCurrentGesture(GESTURES.UNKNOWN);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -216,11 +205,14 @@ export default function GameScreen({ onGameResult }) {
         <CameraView
           style={styles.camera}
           facing={'front'}
-          // ref={cameraRef}
           ref={(ref) => setCameraRef(ref)}
         />
         <View style={styles.overlay}>
-          {countdown !== null && countdown > 0 ? (
+          {isLoading ? (
+            <View style={styles.countdownContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+            </View>
+          ) : countdown !== null && countdown > 0 ? (
             <View style={styles.countdownContainer}>
               <Text style={styles.countdownText}>{countdown}</Text>
             </View>
@@ -236,16 +228,14 @@ export default function GameScreen({ onGameResult }) {
           )}
         </View>
       </View>
-      
       <View style={styles.controls}>
-        {!isDetecting ? (
+        {!isDetecting && !isLoading ? (
           <TouchableOpacity style={styles.startButton} onPress={startGame}>
             <Text style={styles.startButtonText}>Start Game</Text>
           </TouchableOpacity>
         ) : (
           <Text style={styles.playingText}>Game in progress... Detecting gesture</Text>
         )}
-
         <View style={styles.gestureGuide}>
           <Text style={styles.guideTitle}>Gesture Guide:</Text>
           <View style={styles.gestureList}>
