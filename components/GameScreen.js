@@ -137,12 +137,6 @@ export default function GameScreen({ onGameResult }) {
   useEffect(() => {
     if (countdown === 0) {
       setIsDetecting(false);
-
-      // const userGesture = lastDetectedGesture;
-      // const aiGesture = getAIMove();
-      // const result = getGameResult(userGesture, aiGesture);
-      // console.log('🎯 Game round - userGesture:', userGesture, 'aiGesture:', aiGesture, 'result:', result);
-      // onGameResult({ userGesture, aiGesture, result });
       
       if (lastDetectedGesture && lastDetectedGesture !== GESTURES.UNKNOWN) {
         const userGesture = lastDetectedGesture;
