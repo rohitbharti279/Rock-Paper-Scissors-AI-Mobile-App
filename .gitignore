@@ -7,4 +7,5 @@ ios/Pods/
 *.log
 *.pyc
 __pycache__/
-.DS_Store
+.DS_Storeios/Pods/
+ios/build/
