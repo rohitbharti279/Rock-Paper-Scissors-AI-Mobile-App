@@ -51,7 +51,7 @@ This is a full-stack mobile app built with React Native (Expo) and a Python/Node
 
 
 You can test the app via Expo Go using this link (latest update):
-**https://expo.dev/accounts/rohit279/projects/rps-ai-app/updates/50a82918-b18e-42c0-95d2-7050aa4c1eb4**
+**https://expo.dev/accounts/rohit279/projects/rps-ai-app/updates/6891e548-a37e-42d9-bf04-1833fd464b73**
 
 The backend is hosted at:
 **https://rock-paper-scissors-ai-mobile-app-production.up.railway.app**
