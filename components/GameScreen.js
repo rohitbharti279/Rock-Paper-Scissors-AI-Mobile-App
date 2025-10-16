@@ -23,7 +23,7 @@ export default function GameScreen({ onGameResult }) {
   const checkBackendStatus = async () => {
     try {
       console.log('Checking backend health...');
-      const response = await fetch('http://192.168.1.6:5050/health', {
+      const response = await fetch('https://rock-paper-scissors-ai-mobile-app-production.up.railway.app/health', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -60,20 +60,30 @@ export default function GameScreen({ onGameResult }) {
 
   // Send camera photo to backend for gesture detection
   const runDetection = async () => {
-    if (!cameraRef) return console.warn('No camera reference available');
+    if (!cameraRef) {
+      setBackendError('Camera is not ready. Please check permissions and try again.');
+      console.warn('No camera reference available');
+      return;
+    }
     setIsLoading(true);
     try {
       const photo = await cameraRef.takePictureAsync({
         base64: false,
         quality: 0.5,
       });
+      if (!photo || !photo.uri) {
+        setBackendError('Failed to capture photo. Please try again.');
+        console.error('Photo object is undefined:', photo);
+        setCurrentGesture(GESTURES.UNKNOWN);
+        return;
+      }
       const formData = new FormData();
       formData.append('image', {
         uri: photo.uri,
         type: 'image/jpeg',
         name: 'photo.jpg',
       });
-      const backendUrl = 'http://192.168.1.6:5050/detect';
+      const backendUrl = 'https://rock-paper-scissors-ai-mobile-app-production.up.railway.app/detect';
       console.log('📸 Sending image to backend...');
       const response = await fetch(backendUrl, {
         method: 'POST',
@@ -85,7 +95,9 @@ export default function GameScreen({ onGameResult }) {
       });
       console.log('📡 Response status:', response.status);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Backend error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
       const responseText = await response.text();
       console.log('📨 Raw response:', responseText);
@@ -170,7 +182,7 @@ export default function GameScreen({ onGameResult }) {
           {backendError}
         </Text>
         <Text style={{ color: '#333', margin: 10, textAlign: 'center' }}>
-          Make sure your backend server is running on port 5050
+          Make sure your backend server is running
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={retryConnection}>
           <Text style={styles.retryButtonText}>Retry Connection</Text>
