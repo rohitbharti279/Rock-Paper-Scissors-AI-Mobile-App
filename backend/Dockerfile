@@ -1,9 +1,10 @@
 # Use official Node.js image as base
+
 FROM node:18-bullseye
 
-# Install Python3 and pip
+# Install Python3, pip, and libGL.so.1 for OpenCV
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y python3 python3-pip libgl1-mesa-glx && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
